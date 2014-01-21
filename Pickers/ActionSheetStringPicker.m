@@ -96,16 +96,18 @@
 //filter picker results
 - (void)filteredNamesUsingQuery:(NSString *)query {
     
+    NSLog(@"Searching entries for %@",query);
+    
     if(query && ![query isEqualToString:@""]){
-    
-    NSArray *filteredNames = [self.data filteredArrayUsingPredicate:[NSPredicate predicateWithBlock:^BOOL(id evaluatedObject, NSDictionary *bindings) {
-        if ([[evaluatedObject lowercaseString] hasPrefix:[query lowercaseString]]) {
-            return YES;
-        } else {
-            return NO;
-        }
-    }]];
-    
+        
+        NSArray *filteredNames = [self.original_data filteredArrayUsingPredicate:[NSPredicate predicateWithBlock:^BOOL(id evaluatedObject, NSDictionary *bindings) {
+            if ([[evaluatedObject lowercaseString] hasPrefix:[query lowercaseString]]) {
+                return YES;
+            } else {
+                return NO;
+            }
+        }]];
+        
         self.data = filteredNames;
     }
     else{
