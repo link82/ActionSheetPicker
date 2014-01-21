@@ -27,7 +27,7 @@
 
 #import "AbstractActionSheetPicker.h"
 #import <objc/message.h>
-#import <QuartzCore/QuartzCore.h>
+
 
 @interface AbstractActionSheetPicker()
 
@@ -209,10 +209,6 @@
         
     
     self.pickerView = [self configuredPickerView];
-    CALayer *l = self.pickerView.layer;
-    
-    [l setBorderColor:[UIColor redColor].CGColor];
-    [l setBorderWidth:1.0];
     
     NSAssert(_pickerView != NULL, @"Picker view failed to instantiate, perhaps you have invalid component data.");
     [self.masterView addSubview:_pickerView];
