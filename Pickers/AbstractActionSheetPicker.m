@@ -176,6 +176,10 @@
     return YES;
 }
 
+- (void)textFieldDidBeginEditing:(UITextField *)textField{
+    
+}
+
 
 - (BOOL)textFieldShouldEndEditing:(UITextField *)textField{
     return YES;
@@ -192,16 +196,22 @@
 
 - (void)showActionSheetPicker {
     self.masterView = [[UIView alloc] initWithFrame:CGRectMake(0, 0, self.viewSize.width, 256)];
-    [self.masterView setBackgroundColor:[UIColor lightGrayColor]];
+    [self.masterView setBackgroundColor:[UIColor whiteColor]];
+    [self.masterView setAutoresizingMask:UIViewAutoresizingFlexibleWidth | UIViewAutoresizingFlexibleHeight];
     
     UIToolbar *pickerToolbar = [self createPickerToolbarWithTitle:self.title];
-    [pickerToolbar setBarStyle:UIBarStyleBlackTranslucent];
+    [pickerToolbar setBarStyle:UIBarStyleBlackOpaque];
+    [pickerToolbar setBackgroundColor:[UIColor blackColor]];
+    [pickerToolbar setTintColor:[UIColor whiteColor]];
+    
+    [pickerToolbar setAutoresizingMask:UIViewAutoresizingFlexibleWidth];
     [self.masterView addSubview:pickerToolbar];
     
     if(self.useSearchField && !self.searchField){
         self.searchField = [[UITextField alloc] initWithFrame:CGRectMake(0, 40, self.viewSize.width, 40)];
         self.searchField.delegate = self;
         self.searchField.textAlignment = NSTextAlignmentCenter;
+        self.searchField.autocorrectionType = UITextAutocorrectionTypeNo;
         self.searchField.placeholder = NSLocalizedString(@"Filter values",@"search field placeholder text");
         [self.masterView addSubview:self.searchField];
 
@@ -310,9 +320,10 @@
 
 - (UIBarButtonItem *)createToolbarLabelWithTitle:(NSString *)aTitle {
     UILabel *toolBarItemlabel = [[UILabel alloc]initWithFrame:CGRectMake(0, 0, 180,30)];
-    [toolBarItemlabel setTextAlignment:UITextAlignmentCenter];    
+    [toolBarItemlabel setTextAlignment:NSTextAlignmentCenter];
+    [toolBarItemlabel setAutoresizingMask:UIViewAutoresizingFlexibleWidth];
     [toolBarItemlabel setTextColor:[UIColor whiteColor]];    
-    [toolBarItemlabel setFont:[UIFont boldSystemFontOfSize:16]];    
+    [toolBarItemlabel setFont:[UIFont boldSystemFontOfSize:16]];
     [toolBarItemlabel setBackgroundColor:[UIColor clearColor]];    
     toolBarItemlabel.text = aTitle;    
     UIBarButtonItem *buttonLabel = [[UIBarButtonItem alloc]initWithCustomView:toolBarItemlabel];
@@ -409,15 +420,16 @@
 - (void)configureAndPresentPopoverForView:(UIView *)aView {
     UIViewController *viewController = [[UIViewController alloc] initWithNibName:nil bundle:nil];
     viewController.view = aView;
-    viewController.contentSizeForViewInPopover = viewController.view.frame.size;
+    viewController.preferredContentSize = viewController.view.frame.size;
     _popOverController = [[UIPopoverController alloc] initWithContentViewController:viewController];
+
     [self presentPopover:_popOverController];
 }
 
 - (void)presentPopover:(UIPopoverController *)popover {
     NSParameterAssert(popover != NULL);
     if (self.barButtonItem) {
-        [popover presentPopoverFromBarButtonItem:_barButtonItem permittedArrowDirections:UIPopoverArrowDirectionAny animated:YES];
+        [popover presentPopoverFromBarButtonItem:_barButtonItem permittedArrowDirections:UIPopoverArrowDirectionLeft animated:YES];
         return;
     }
     else if ((self.containerView) && NO == CGRectIsEmpty(self.presentFromRect)) {
