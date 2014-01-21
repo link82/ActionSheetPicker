@@ -96,7 +96,7 @@
 //filter picker results
 - (void)filteredNamesUsingQuery:(NSString *)query {
     
-    NSLog(@"Searching entries for %@",query);
+    //NSLog(@"Searching entries for %@",query);
     
     if(query && ![query isEqualToString:@""]){
         
