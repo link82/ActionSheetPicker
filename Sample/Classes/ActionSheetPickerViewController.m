@@ -75,14 +75,15 @@
 - (IBAction)selectABlock:(UIControl *)sender {
     ActionStringDoneBlock done = ^(ActionSheetStringPicker *picker, NSInteger selectedIndex, id selectedValue) {
         if ([sender respondsToSelector:@selector(setText:)]) {
-            [sender performSelector:@selector(setText:) withObject:selectedValue];
+            [sender performSelector:@selector(setText:) withObject:[selectedValue copy]];
         }
     };
     ActionStringCancelBlock cancel = ^(ActionSheetStringPicker *picker) {
         NSLog(@"Block Picker Canceled");
     };
     NSArray *colors = [NSArray arrayWithObjects:@"Red", @"Green", @"Blue", @"Orange", nil];
-    [ActionSheetStringPicker showPickerWithTitle:@"Select a Block" rows:colors initialSelection:0 doneBlock:done cancelBlock:cancel origin:sender];
+    [ActionSheetStringPicker showPickerWithTitle:@"Select a Block (with filter)" rows:colors initialSelection:0 doneBlock:done cancelBlock:cancel origin:sender withSearch:YES];
+    
 }
 
 - (IBAction)selectAnAnimal:(UIControl *)sender {

@@ -27,8 +27,11 @@
 
 #import "AbstractActionSheetPicker.h"
 #import <objc/message.h>
+#import <QuartzCore/QuartzCore.h>
 
 @interface AbstractActionSheetPicker()
+
+@property (nonatomic, strong) UIView *masterView;
 
 @property (nonatomic, strong) UIBarButtonItem *barButtonItem;
 @property (nonatomic, strong) UIView *containerView;
@@ -53,6 +56,9 @@
 - (UIBarButtonItem *)createButtonWithType:(UIBarButtonSystemItem)type target:(id)target action:(SEL)buttonAction;
 - (IBAction)actionPickerDone:(id)sender;
 - (IBAction)actionPickerCancel:(id)sender;
+
+- (void)filteredNamesUsingQuery:(NSString *)query;
+
 @end
 
 @implementation AbstractActionSheetPicker
@@ -70,6 +76,7 @@
 @synthesize customButtons = _customButtons;
 @synthesize hideCancel = _hideCancel;
 @synthesize presentFromRect = _presentFromRect;
+@synthesize searchField = _searchField;
 
 #pragma mark - Abstract Implementation
 
@@ -80,6 +87,8 @@
         self.successAction = successAction;
         self.cancelAction = cancelActionOrNil;
         self.presentFromRect = CGRectZero;
+        self.useSearchField = NO;
+ 
         
         if ([origin isKindOfClass:[UIBarButtonItem class]])
             self.barButtonItem = origin;
@@ -125,17 +134,89 @@
     }
 }
 
+
+#pragma mark - automatically slide view so it will not cover text field in iPhone
+- (void)keyboardWasShown:(NSNotification *)notification
+{
+ 
+    CGSize keyboardSize = [[[notification userInfo] objectForKey:UIKeyboardFrameBeginUserInfoKey] CGRectValue].size;
+
+    CGRect aRect = self.masterView.frame;
+    aRect.size.height -= keyboardSize.height;
+    
+    if (!CGRectContainsPoint(aRect, self.searchField.frame.origin) ) {
+
+        float top = aRect.size.height -(self.searchField.frame.origin.y + self.searchField.frame.size.height);
+        [UIView animateWithDuration:0.3 animations:^{
+            self.masterView.frame = CGRectMake(self.masterView.frame.origin.x,top,self.masterView.frame.size.width,self.masterView.frame.size.height);
+        }];
+        
+    }
+}
+
+- (void) keyboardWillHide:(NSNotification *)notification {
+ 
+    [UIView animateWithDuration:0.3 animations:^{
+        self.masterView.frame = CGRectMake(self.masterView.frame.origin.x,0.0,self.masterView.frame.size.width,self.masterView.frame.size.height);
+    }];
+    
+}
+
+#pragma mark - UITextField Delegate methods
+
+- (BOOL)textFieldShouldReturn:(UITextField *)textField{
+    [textField resignFirstResponder];
+    return NO;
+}
+
+- (BOOL)textField:(UITextField *)textField shouldChangeCharactersInRange:(NSRange)range replacementString:(NSString *)string{
+    NSMutableString *proposed = [NSMutableString stringWithString:textField.text];
+    [proposed replaceCharactersInRange:range withString:string];
+    [self filteredNamesUsingQuery:proposed];
+    return YES;
+}
+
+
+- (BOOL)textFieldShouldEndEditing:(UITextField *)textField{
+    return YES;
+}
+
+//must be implemented in subclasses
+- (void)filteredNamesUsingQuery:(NSString *)query {
+    NSLog(@"Warniing unimplemented search method in subclass");
+}
+
+#pragma mark -
+
 #pragma mark - Actions
 
 - (void)showActionSheetPicker {
-    UIView *masterView = [[UIView alloc] initWithFrame:CGRectMake(0, 0, self.viewSize.width, 260)];    
+    self.masterView = [[UIView alloc] initWithFrame:CGRectMake(0, 0, self.viewSize.width, 256)];
+    [self.masterView setBackgroundColor:[UIColor lightGrayColor]];
+    
     UIToolbar *pickerToolbar = [self createPickerToolbarWithTitle:self.title];
     [pickerToolbar setBarStyle:UIBarStyleBlackTranslucent];
-    [masterView addSubview:pickerToolbar];
+    [self.masterView addSubview:pickerToolbar];
+    
+    if(self.useSearchField && !self.searchField){
+        self.searchField = [[UITextField alloc] initWithFrame:CGRectMake(0, 40, self.viewSize.width, 40)];
+        self.searchField.delegate = self;
+        self.searchField.textAlignment = NSTextAlignmentCenter;
+        self.searchField.placeholder = NSLocalizedString(@"Filter values",@"search field placeholder text");
+        [self.masterView addSubview:self.searchField];
+
+    }
+        
+    
     self.pickerView = [self configuredPickerView];
+    CALayer *l = self.pickerView.layer;
+    
+    [l setBorderColor:[UIColor redColor].CGColor];
+    [l setBorderWidth:1.0];
+    
     NSAssert(_pickerView != NULL, @"Picker view failed to instantiate, perhaps you have invalid component data.");
-    [masterView addSubview:_pickerView];
-    [self presentPickerForView:masterView];
+    [self.masterView addSubview:_pickerView];
+    [self presentPickerForView:self.masterView];
 }
 
 - (IBAction)actionPickerDone:(id)sender {
@@ -149,6 +230,14 @@
 }
 
 - (void)dismissPicker {
+
+    
+    [[NSNotificationCenter defaultCenter] removeObserver:self name:UIKeyboardDidShowNotification object:nil];
+    [[NSNotificationCenter defaultCenter] removeObserver:self name:UIKeyboardWillHideNotification object:nil];
+    
+    if(self.useSearchField && [self.searchField isFirstResponder])
+        [self.searchField resignFirstResponder];
+    
 #if __IPHONE_4_1 <= __IPHONE_OS_VERSION_MAX_ALLOWED
     if (self.actionSheet)
 #else
@@ -241,9 +330,11 @@
 #pragma mark - Utilities and Accessors
 
 - (CGSize)viewSize {
+    
+    float searchBoxSize = (self.useSearchField ? 40 : 0);
     if (![self isViewPortrait])
-        return CGSizeMake(480, 320);
-    return CGSizeMake(320, 480);
+        return CGSizeMake(480, 320 + searchBoxSize);
+    return CGSizeMake(320 + searchBoxSize, 480);
 }
 
 - (BOOL)isViewPortrait {
@@ -268,6 +359,19 @@
 
 - (void)presentPickerForView:(UIView *)aView {
     self.presentFromRect = aView.frame;
+    
+    
+    
+    if(([[UIDevice currentDevice] userInterfaceIdiom] == UIUserInterfaceIdiomPhone) && self.useSearchField){
+        [[NSNotificationCenter defaultCenter] addObserver:self
+                                                 selector:@selector(keyboardWasShown:)
+                                                     name:UIKeyboardDidShowNotification
+                                                   object:nil];
+        [[NSNotificationCenter defaultCenter] addObserver:self
+                                                 selector:@selector(keyboardWillHide:)
+                                                     name:UIKeyboardWillHideNotification
+                                                   object:nil];
+    }
     
     if (UI_USER_INTERFACE_IDIOM() == UIUserInterfaceIdiomPad)
         [self configureAndPresentPopoverForView:aView];

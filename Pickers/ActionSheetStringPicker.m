@@ -29,7 +29,10 @@
 
 @interface ActionSheetStringPicker()
 @property (nonatomic,strong) NSArray *data;
+@property (nonatomic,strong) NSArray *original_data;
 @property (nonatomic,assign) NSInteger selectedIndex;
+
+- (void)filteredNamesUsingQuery:(NSString *)query;
 @end
 
 @implementation ActionSheetStringPicker
@@ -39,10 +42,21 @@
 @synthesize onActionSheetCancel = _onActionSheetCancel;
 
 + (id)showPickerWithTitle:(NSString *)title rows:(NSArray *)strings initialSelection:(NSInteger)index doneBlock:(ActionStringDoneBlock)doneBlock cancelBlock:(ActionStringCancelBlock)cancelBlockOrNil origin:(id)origin {
-    ActionSheetStringPicker * picker = [[ActionSheetStringPicker alloc] initWithTitle:title rows:strings initialSelection:index doneBlock:doneBlock cancelBlock:cancelBlockOrNil origin:origin];
-    [picker showActionSheetPicker];
-    return picker;
+    
+    return [self showPickerWithTitle:title rows:strings initialSelection:index doneBlock:doneBlock cancelBlock:cancelBlockOrNil origin:origin withSearch:NO];
 }
+
++ (id)showPickerWithTitle:(NSString *)title rows:(NSArray *)strings initialSelection:(NSInteger)index doneBlock:(ActionStringDoneBlock)doneBlock cancelBlock:(ActionStringCancelBlock)cancelBlock origin:(id)origin withSearch:(BOOL)useSearch{
+    
+    ActionSheetStringPicker * picker = [[ActionSheetStringPicker alloc] initWithTitle:title rows:strings initialSelection:index doneBlock:doneBlock cancelBlock:cancelBlock origin:origin];
+
+    [picker setUseSearchField:useSearch];
+    [picker showActionSheetPicker];
+    
+    return picker;
+    
+}
+ 
 
 - (id)initWithTitle:(NSString *)title rows:(NSArray *)strings initialSelection:(NSInteger)index doneBlock:(ActionStringDoneBlock)doneBlock cancelBlock:(ActionStringCancelBlock)cancelBlockOrNil origin:(id)origin {
     self = [self initWithTitle:title rows:strings initialSelection:index target:nil successAction:nil cancelAction:nil origin:origin];
@@ -54,15 +68,24 @@
 }
 
 + (id)showPickerWithTitle:(NSString *)title rows:(NSArray *)data initialSelection:(NSInteger)index target:(id)target successAction:(SEL)successAction cancelAction:(SEL)cancelActionOrNil origin:(id)origin {
+    
+    return [self showPickerWithTitle:title rows:data initialSelection:index target:target successAction:successAction cancelAction:cancelActionOrNil origin:origin withSearch:NO];
+}
+
++ (id)showPickerWithTitle:(NSString *)title rows:(NSArray *)data initialSelection:(NSInteger)index target:(id)target successAction:(SEL)successAction cancelAction:(SEL)cancelActionOrNil origin:(id)origin withSearch:(BOOL)useSearch{
+    
     ActionSheetStringPicker *picker = [[ActionSheetStringPicker alloc] initWithTitle:title rows:data initialSelection:index target:target successAction:successAction cancelAction:cancelActionOrNil origin:origin];
+    [picker setUseSearchField:useSearch];
     [picker showActionSheetPicker];
     return picker;
+    
 }
 
 - (id)initWithTitle:(NSString *)title rows:(NSArray *)data initialSelection:(NSInteger)index target:(id)target successAction:(SEL)successAction cancelAction:(SEL)cancelActionOrNil origin:(id)origin {
     self = [self initWithTarget:target successAction:successAction cancelAction:cancelActionOrNil origin:origin];
     if (self) {
         self.data = data;
+        self.original_data = data;
         self.selectedIndex = index;
         self.title = title;
     }
@@ -70,10 +93,35 @@
 }
 
 
+//filter picker results
+- (void)filteredNamesUsingQuery:(NSString *)query {
+    
+    if(query && ![query isEqualToString:@""]){
+    
+    NSArray *filteredNames = [self.data filteredArrayUsingPredicate:[NSPredicate predicateWithBlock:^BOOL(id evaluatedObject, NSDictionary *bindings) {
+        if ([[evaluatedObject lowercaseString] hasPrefix:[query lowercaseString]]) {
+            return YES;
+        } else {
+            return NO;
+        }
+    }]];
+    
+        self.data = filteredNames;
+    }
+    else{
+        self.data = self.original_data;
+    }
+    
+    [(UIPickerView *)self.pickerView reloadAllComponents];
+}
+
 - (UIView *)configuredPickerView {
     if (!self.data)
         return nil;
-    CGRect pickerFrame = CGRectMake(0, 40, self.viewSize.width, 216);
+    
+    float top_margin = (self.useSearchField ? 80 : 40);
+    
+    CGRect pickerFrame = CGRectMake(0, top_margin, self.viewSize.width, 216);
     UIPickerView *stringPicker = [[UIPickerView alloc] initWithFrame:pickerFrame];
     stringPicker.delegate = self;
     stringPicker.dataSource = self;
@@ -91,7 +139,7 @@
         _onActionSheetDone(self, self.selectedIndex, [self.data objectAtIndex:self.selectedIndex]);
         return;
     }
-    else if (target && [target respondsToSelector:successAction]) {
+    else if (target && successAction && [target respondsToSelector:successAction]) {
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Warc-performSelector-leaks"
         [target performSelector:successAction withObject:[NSNumber numberWithInt:self.selectedIndex] withObject:origin];
